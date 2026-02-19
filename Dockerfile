@@ -18,7 +18,8 @@ RUN apk add --no-cache \
     nginx \
     sqlite-dev \
     oniguruma-dev \
-    libpng-dev
+    libpng-dev \
+    zlib-dev
 
 # Install Node.js
 RUN apk add --no-cache nodejs npm
@@ -29,7 +30,8 @@ RUN docker-php-ext-install -j$(nproc) \
     pdo_pgsql \
     bcmath \
     mbstring \
-    gd
+    gd \
+    zip
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
