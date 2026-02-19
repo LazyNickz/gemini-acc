@@ -1,6 +1,6 @@
 # syntax = docker/dockerfile:1
 
-ARG PHP_VERSION=8.3
+ARG PHP_VERSION=8.4
 ARG NODE_VERSION=20
 
 FROM php:${PHP_VERSION}-fpm-alpine AS base
