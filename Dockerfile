@@ -1,20 +1,21 @@
 # syntax = docker/dockerfile:1
 
-# Adjust BUN_VERSION as desired
 ARG PHP_VERSION=8.3
 ARG NODE_VERSION=20
-FROM php:${PHP_VERSION}-cli-alpine AS base
 
-LABEL fly_launch_runtime="laravel"
+FROM php:${PHP_VERSION}-fpm-alpine AS base
 
-# PHP and Node.js extensions
+LABEL runtime="laravel"
+
+# Install system dependencies
 RUN apk add --no-cache \
     ca-certificates \
     curl \
     libpq-dev \
     build-base \
     git \
-    linux-headers
+    linux-headers \
+    nginx
 
 # Install Node.js
 RUN apk add --no-cache nodejs npm
@@ -38,7 +39,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /app
 ENV PATH="/app/vendor/bin:$PATH"
 
-# build stage
+# Build stage
 FROM base as build
 
 COPY composer.* ./
@@ -54,29 +55,37 @@ COPY . .
 
 RUN composer dump-autoload --optimize --no-dev
 
-RUN npm install
+RUN npm install && npm run build
 
-RUN npm run build
-
-# final stage
+# Final stage
 FROM base
 
-# Install ca-certificates for HTTPS
-RUN apk add --no-cache ca-certificates
+# Install supervisor for running both PHP-FPM and Nginx
+RUN apk add --no-cache supervisor
 
-# Ensure the storage directory exists and is writable
-RUN mkdir -p /app/storage/logs
-RUN mkdir -p /app/storage/framework/cache
-RUN mkdir -p /app/storage/framework/sessions
-RUN mkdir -p /app/storage/framework/views
+# Create necessary directories
+RUN mkdir -p /app/storage/logs \
+    && mkdir -p /app/storage/framework/cache \
+    && mkdir -p /app/storage/framework/sessions \
+    && mkdir -p /app/storage/framework/views \
+    && mkdir -p /run/php \
+    && mkdir -p /var/log/supervisor
 
 COPY --from=build --chown=www-data:www-data /app /app
 
-EXPOSE 8000
+# Copy Nginx configuration
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY docker/default.conf /etc/nginx/conf.d/default.conf
 
-# Create .env file if it doesn't exist
+# Copy supervisor configuration
+COPY docker/supervisord.conf /etc/supervisord.conf
+
+# Copy PHP-FPM configuration
+COPY docker/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
+
+# Create .env file from .env.example if needed
 RUN if [ ! -f /app/.env ]; then cp /app/.env.example /app/.env; fi
 
-WORKDIR /app
+EXPOSE 80
 
-CMD ["sh", "-c", "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
