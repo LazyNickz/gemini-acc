@@ -16,23 +16,18 @@ RUN apk add --no-cache \
     git \
     linux-headers \
     nginx \
-    sqlite-dev
+    sqlite-dev \
+    oniguruma-dev
 
 # Install Node.js
 RUN apk add --no-cache nodejs npm
 
-# Install PHP extensions
-RUN docker-php-ext-install \
+# Install PHP extensions (only essential ones)
+RUN docker-php-ext-install -j$(nproc) \
     pdo \
     pdo_pgsql \
-    pdo_sqlite \
     bcmath \
-    ctype \
-    fileinfo \
-    json \
-    mbstring \
-    tokenizer \
-    xml
+    mbstring
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
