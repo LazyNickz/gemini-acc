@@ -15,7 +15,8 @@ RUN apk add --no-cache \
     build-base \
     git \
     linux-headers \
-    nginx
+    nginx \
+    sqlite-dev
 
 # Install Node.js
 RUN apk add --no-cache nodejs npm
